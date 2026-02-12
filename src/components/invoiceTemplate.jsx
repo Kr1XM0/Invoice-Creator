@@ -15,7 +15,7 @@ export default function InvoiceTemplate({clientName,clientAddress, userName,comp
   const date = new Date()
   const formatDate = (date) => {
     if(date === '-' ) return "-"
-    const newDate = new Date(date)
+    const newDate = new Date(`${date}T00:00:00`)
     return newDate.toLocaleDateString('en-US')
   }
 

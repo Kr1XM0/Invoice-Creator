@@ -59,8 +59,6 @@ useEffect(() => {
 
   }
 
-    console.log("esta es la basci INFO DEL CLIENTE:", basicOfClient);
-
   return (
     <main className='flex max-w-7xl min-w-xs w-full min-h-dvh justify-center items-center mx-auto relative'>
       {!basicOfClient && 
@@ -84,7 +82,6 @@ useEffect(() => {
       phoneNumber={userData.phoneNumber}
       emailAddress={userData.emailAddress}
       />}
-      {/* <footer className='absolute bottom-0'>Copyrig</footer> */}
     </main>
   )
 }
