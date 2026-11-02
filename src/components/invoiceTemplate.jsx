@@ -1,171 +1,365 @@
-import { useState,useRef } from 'preact/hooks';
-import html2canvas from 'html2canvas';
-import FormDataModal from './FormDataModal';
-import { IconTrash, IconEdit, IconEditOff, IconCamera } from '@tabler/icons-preact';
+import { useRef, useState } from 'preact/hooks'
+import html2canvas from 'html2canvas'
+import {
+  IconColumns,
+  IconDownload,
+  IconEye,
+  IconFileInvoice,
+  IconPencil,
+  IconPlus,
+  IconTrash,
+  IconUsers,
+} from '@tabler/icons-preact'
+import { Button } from './ui'
+import ColumnsModal from './columnsModal'
+import FormDataModal from './FormDataModal'
+import {
+  cellValue,
+  columnAlign,
+  columnWidth,
+  formatLongDate,
+  formatMoney,
+  invoiceTotal,
+} from '../lib/invoice'
 
+export default function InvoiceTemplate({
+  client,
+  userData,
+  columns,
+  onColumnsChange,
+  onChangeClient,
+}) {
+  const sheetRef = useRef(null)
+  const [rows, setRows] = useState(() => [])
+  const [editMode, setEditMode] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+  const [showFormModal, setShowFormModal] = useState(false)
+  const [showColumns, setShowColumns] = useState(false)
+  const [editingRow, setEditingRow] = useState(null)
+  const [invoiceNumber] = useState(
+    () =>
+      `INV-${new Date().getFullYear()}-${String(
+        Math.floor(1000 + Math.random() * 9000),
+      )}`,
+  )
+  const [issueDate] = useState(() => new Date())
 
-export default function InvoiceTemplate({clientName,clientAddress, userName,companyName,workDirection,emailAddress,phoneNumber}){
-  const facturaRef = useRef(null);
-  const [showFormModal,setShowFormModal] = useState(false)
-  const [editMode,setEditMode] = useState(true)
-  const [clientData,setClientData] = useState([
-  { amount: "-", description: "-", date: "-", cost: "-", total: "-" }
-])
+  const visibleColumns = columns.filter((column) => column.visible)
+  const total = invoiceTotal(rows)
+  const showEditControls = editMode && !isExporting
 
-  const date = new Date()
-  const formatDate = (date) => {
-    if(date === '-' ) return "-"
-    const newDate = new Date(`${date}T00:00:00`)
-    return newDate.toLocaleDateString('en-US')
+  const openAddRow = () => {
+    setEditingRow(null)
+    setShowFormModal(true)
   }
 
-  const descargarFactura = async () => {
-      // Esperar a que las fuentes se carguen (importante si usas Google Fonts)
-      await document.fonts.ready;
-
-      // Capturar el elemento con html2canvas
-      const canvas = await html2canvas(facturaRef.current, {
-        scale: 2, // Mejor calidad
-        logging: true, // Para depuración
-        useCORS: true, // Permitir imágenes externas
-        allowTaint: true, // Permitir imágenes de otros dominios
-      });
-
-      // Crear un enlace para descargar la imagen
-      const link = document.createElement('a');
-      link.download = 'Invoice.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-  };
-
-  const handelClick = (data) => {
-    setShowFormModal(data)
+  const openEditRow = (row) => {
+    setEditingRow(row)
+    setShowFormModal(true)
   }
 
-  const takeClientData = (data) => {
-    let copy = [...clientData]
+  const handleSaveRows = (savedRows) => {
+    if (editingRow) {
+      setRows((current) =>
+        current.map((row) =>
+          row.id === editingRow.id
+            ? { ...savedRows[0], id: editingRow.id }
+            : row,
+        ),
+      )
+      setEditingRow(null)
+      return
+    }
 
-    if(copy[0].amount === "-"){
-      
-      copy = [...data]
-      setClientData(copy)
+    setRows((current) => [...current, ...savedRows])
+  }
 
-    } else {
-      copy = [...clientData, ...data]
-      setClientData(copy)
+  const deleteRow = (rowId) => {
+    setRows((current) => current.filter((row) => row.id !== rowId))
+  }
+
+  const downloadInvoice = async () => {
+    if (!sheetRef.current || isExporting) return
+
+    setIsExporting(true)
+    setExportError('')
+
+    try {
+      if (document.fonts?.ready) await document.fonts.ready
+      await new Promise((resolve) => setTimeout(resolve, 60))
+
+      const canvas = await html2canvas(sheetRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      })
+
+      const link = document.createElement('a')
+      const slug = client.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+
+      link.download = `invoice-${slug || 'client'}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (error) {
+      console.error(error)
+      setExportError('Could not export the invoice. Please try again.')
+    } finally {
+      setIsExporting(false)
     }
   }
 
-    const deleteRow = (index) => {
-    if(clientData.length !== 1){
-      const newRows = [...clientData];
-      newRows.splice(index, 1);
-      setClientData(newRows);
-    } else {
-      setClientData([{ amount: "-", description: "-", date: "-", cost: "-", total: "-" }])
-    }  
-  }
-
-  const camb = () => {
-    setEditMode(!editMode)
-  }
-
-
-  return(
-    <div className='absolute bg-white border-2 rounded-xl border-mi-color top-10 my-20'>
-      <button 
-      className={`absolute cursor-pointer left-10 top-5 rounded-xl z-10 bg-blue-500 ${editMode && "bg-red-400"} p-2`} 
-      onClick={camb}>
-        {!editMode ? <IconEdit /> : <IconEditOff />} 
-      </button>
-
-      {!editMode && 
-      <button
-      className='absolute cursor-pointer left-22 top-5 rounded-xl z-10 bg-blue-500 p-2' 
-      onClick={descargarFactura}
-      >
-        {<IconCamera />}
-      </button> }
-      
-      <section ref={facturaRef} className="w-full p-10   ">
-
-        <header>
-          <div className="flex justify-between items-end relative">
-            <p className=''>Invoice No.</p>
-            <h2 className="text-8xl font-bold">Invoice</h2>
-          </div>
-          <hr className="mt-8" />
-        </header>
-
-        <div className='flex justify-between mt-10 '>
-          <div>
-            <p className='font-semibold text-2xl'>BILL TO:</p>
-            <p className='text-xl'>{clientName}</p>
-          </div>
-          <div className='flex items-center gap-10 mr-20'>
-            <p className='font-semibold text-2xl'>DATE:</p>
-            <p className='text-xl'>{date.toLocaleDateString('en-US')}</p>
-          </div>
-        </div>
-        
-        <div className='mt-10'>
-          <div className='grid text-start grid-cols-10'>
-            <h5 className='text-2xl font-bold'>DESCRIPTION</h5>
-            <h5 className='col-start-4 text-2xl font-bold'>DATE</h5>
-            <h5 className='col-start-7 text-2xl font-bold'>PRICE</h5>
-            <h5 className='col-start-10 text-2xl font-bold'>SUBTOTAL</h5>
-          </div>
-          {clientData.map((data,index) => {
-            return(
-              <div className='grid text-start grid-rows-2 grid-cols-10' key={index}>
-                <p className='row-start-2 text-xl col-span-2'>{data.description}</p>
-                <p className='row-start-2 text-xl col-start-4'>{formatDate(data.date)}</p>
-                <p className='row-start-2 text-xl col-start-7'>$ {data.cost}{data.amount > 1 && `/ ${data.amount}`}</p>
-                <p className='row-start-2 text-xl col-start-10 relative'>$ {data.total} 
-                  {editMode &&
-                    <IconTrash 
-                    className={"absolute right-0 top-0 hover:text-red-500 transition-colors cursor-pointer"} 
-                    onClick={() => deleteRow(index)}/>
-                  }
-                </p>
-              </div>
-            )
-          })}
-          {editMode && 
-            <div onClick={() => handelClick(true)} className='flex justify-center items-center w-full h-20 mt-5  text-blue-400 text-center border border-dashed rounded-3xl bg-blue-100 cursor-pointer hover:bg-blue-300 hover:text-blue-500'>
-              <p className='text-3xl font-semibold'>Click Here to Add Rows</p>
-            </div>
-          }
-          {showFormModal && <FormDataModal sendClientData={takeClientData} close={(x) => handelClick(x)}/>}
-
-          <hr className='my-4' />
-          <div className='flex justify-end items-center gap-2 mr-20'>
-            <h4 className='font-bold text-3xl'>TOTAL: </h4>
-            <p className='text-3xl font-semibold'>{clientData.length === 1  ? clientData[0].total : 
-            clientData.reduce((accumlador,siguiente) => {return accumlador + siguiente.total}, 0)}</p>
-          </div>
-        </div>
-
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className='flex justify-between mt-8 mx-4 text-xl'>
-            <p>Address of the working place:</p>
-            <p>{clientAddress}</p>
-          </div>
-          <div className='flex justify-between mt-8 mx-4 font-bold'>
-            <div>
-              <p>Payment Information</p>
-              <p>{companyName}</p>
-            </div>
-            <div className='flex flex-col'>
-              <p>{userName}</p>
-              <p>{workDirection}</p>
-              <p>{phoneNumber}</p>
-              <p>{emailAddress}</p>
-            </div>
-          </div>
+          <p className="label">Draft invoice</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
+            Invoice for {client.name}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            Edit line items, tune the columns, then download as PNG.
+          </p>
         </div>
 
-      </section>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" icon={IconUsers} onClick={onChangeClient}>
+            Client
+          </Button>
+          <Button
+            variant="secondary"
+            icon={IconColumns}
+            onClick={() => setShowColumns(true)}
+          >
+            Columns
+          </Button>
+          <Button
+            variant="secondary"
+            icon={editMode ? IconEye : IconPencil}
+            onClick={() => setEditMode((value) => !value)}
+          >
+            {editMode ? 'Preview' : 'Edit'}
+          </Button>
+          <Button
+            icon={IconDownload}
+            onClick={downloadInvoice}
+            disabled={isExporting}
+          >
+            {isExporting ? 'Exporting…' : 'Download'}
+          </Button>
+        </div>
+      </div>
+
+      {exportError && (
+        <p className="text-xs font-medium text-red-600">{exportError}</p>
+      )}
+
+      <div className="overflow-x-auto pb-2">
+        <article
+          ref={sheetRef}
+          className="mx-auto min-w-170 max-w-4xl rounded-2xl border border-neutral-200 bg-white p-10 text-neutral-900 sm:p-12"
+        >
+          <header className="flex items-start justify-between gap-8 border-b border-neutral-200 pb-8">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-neutral-900 text-white">
+                  <IconFileInvoice size={16} />
+                </span>
+                <span className="min-w-0 wrap-break-words text-sm font-semibold tracking-tight">
+                  {userData.companyName}
+                </span>
+              </div>
+
+              <div className="mt-5 space-y-1 text-sm text-neutral-500">
+                {userData.workDirection && (
+                  <p className="whitespace-pre-line">
+                    {userData.workDirection}
+                  </p>
+                )}
+                {userData.emailAddress && <p>{userData.emailAddress}</p>}
+                {userData.phoneNumber && <p>{userData.phoneNumber}</p>}
+              </div>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <p className="text-[11px] font-medium tracking-[0.3em] text-neutral-400 uppercase">
+                Invoice
+              </p>
+              <p className="mt-2 text-xl font-semibold tracking-tight">
+                {invoiceNumber}
+              </p>
+              <p className="mt-2 text-sm text-neutral-500">
+                {formatLongDate(issueDate)}
+              </p>
+            </div>
+          </header>
+
+          <div className="grid gap-8 border-b border-neutral-100 py-8 sm:grid-cols-2">
+            <div>
+              <p className="label">Bill to</p>
+              <p className="mt-3 text-base font-medium">{client.name}</p>
+              {client.address && (
+                <p className="mt-1 text-sm whitespace-pre-line text-neutral-500">
+                  {client.address}
+                </p>
+              )}
+              {client.email && (
+                <p className="mt-1 text-sm text-neutral-500">{client.email}</p>
+              )}
+            </div>
+
+            <div className="sm:text-right">
+              <p className="label">Payment details</p>
+              <p className="mt-3 text-base font-medium">
+                {userData.companyName}
+              </p>
+              {userData.userName && (
+                <p className="mt-1 text-sm text-neutral-500">
+                  {userData.userName}
+                </p>
+              )}
+              {userData.phoneNumber && (
+                <p className="mt-1 text-sm text-neutral-500">
+                  {userData.phoneNumber}
+                </p>
+              )}
+              {userData.emailAddress && (
+                <p className="mt-1 text-sm text-neutral-500">
+                  {userData.emailAddress}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="py-8">
+            <table className="w-full table-fixed border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200">
+                  {visibleColumns.map((column) => (
+                    <th
+                      key={column.id}
+                      style={{ width: columnWidth(column) }}
+                      className={`pb-3 text-[11px] font-medium tracking-wider text-neutral-400 uppercase ${columnAlign(column)}`}
+                    >
+                      {column.label}
+                    </th>
+                  ))}
+                  {showEditControls && <th className="w-16 pb-3" />}
+                </tr>
+              </thead>
+
+              <tbody>
+                {rows.length === 0 && showEditControls ? (
+                  <tr>
+                    <td
+                      colSpan={visibleColumns.length + 1}
+                      className="py-10 text-center text-sm text-neutral-400"
+                    >
+                      No line items yet. Add your first line item below.
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-neutral-100 last:border-0"
+                    >
+                      {visibleColumns.map((column) => (
+                        <td
+                          key={column.id}
+                          style={{ width: columnWidth(column) }}
+                          className={`py-4 align-top wrap-break-words ${columnAlign(column)} ${
+                            column.id === 'description'
+                              ? 'font-medium text-neutral-900'
+                              : 'text-neutral-600'
+                          }`}
+                        >
+                          {cellValue(column, row)}
+                        </td>
+                      ))}
+
+                      {showEditControls && (
+                        <td className="w-16 py-4 text-right align-top">
+                          <div className="flex justify-end gap-0.5">
+                            <button
+                              type="button"
+                              className="icon-btn size-8 border-0 bg-transparent"
+                              onClick={() => openEditRow(row)}
+                              aria-label="Edit line item"
+                            >
+                              <IconPencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn size-8 border-0 bg-transparent hover:text-red-600"
+                              onClick={() => deleteRow(row.id)}
+                              aria-label="Delete line item"
+                            >
+                              <IconTrash size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            {showEditControls && (
+              <button
+                type="button"
+                onClick={openAddRow}
+                className="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 py-3.5 text-sm font-medium text-neutral-500 transition-colors hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-900"
+              >
+                <IconPlus size={16} />
+                Add line item
+              </button>
+            )}
+          </div>
+
+          <footer className="border-t border-neutral-200 pt-6">
+            <div className="ml-auto w-full max-w-xs space-y-2">
+              <div className="flex justify-between text-sm text-neutral-500">
+                <span>Subtotal</span>
+                <span>{formatMoney(total)}</span>
+              </div>
+              <div className="flex justify-between border-t border-neutral-200 pt-3 text-base font-semibold">
+                <span>Total</span>
+                <span>{formatMoney(total)}</span>
+              </div>
+            </div>
+
+            <p className="mt-8 text-xs text-neutral-400">
+              Thank you for your business.
+            </p>
+          </footer>
+        </article>
+      </div>
+
+      {showFormModal && (
+        <FormDataModal
+          columns={columns}
+          initialRows={editingRow ? [editingRow] : undefined}
+          mode={editingRow ? 'edit' : 'add'}
+          onSave={handleSaveRows}
+          close={() => {
+            setShowFormModal(false)
+            setEditingRow(null)
+          }}
+        />
+      )}
+
+      {showColumns && (
+        <ColumnsModal
+          columns={columns}
+          onChange={onColumnsChange}
+          close={() => setShowColumns(false)}
+        />
+      )}
     </div>
   )
 }

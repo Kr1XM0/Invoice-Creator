@@ -1,84 +1,114 @@
-import { useState } from 'preact/hooks';
-import { IconX } from '@tabler/icons-preact';
+import { useState } from 'preact/hooks'
+import { IconArrowRight, IconCheck } from '@tabler/icons-preact'
+import { Button, Field, Modal } from './ui'
 
-export default function InitForm({close}) {
+export default function InitForm({ close, onSave, initialData, isSetup = false }) {
+  const [form, setForm] = useState({
+    userName: initialData?.userName ?? '',
+    companyName: initialData?.companyName ?? '',
+    workDirection: initialData?.workDirection ?? '',
+    emailAddress: initialData?.emailAddress ?? '',
+    phoneNumber: initialData?.phoneNumber ?? '',
+  })
 
-  const [userName, setUserName] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [workDirection, setWorkDirection] = useState('');
-  const [emailAddress, setEmailAddress] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const update = (field) => (event) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }))
+  }
 
-  const guardarDatos = (e) => {
-    e.preventDefault()
-    const datos = { userName, companyName, phoneNumber, emailAddress, workDirection };
-    localStorage.setItem('userData', JSON.stringify(datos));
-    close(false)
-    console.log(JSON.parse(localStorage.getItem('userData')));
-};
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    onSave(form)
+    close()
+  }
 
-  return(
-    <div className="absolute inset-0 m-auto w-1/2 h-2/3 bg-white shadow-xl border-2 border-gray-300 rounded-xl">
-      <form className="p-6 flex flex-col gap-4 relative" onSubmit={guardarDatos}>
-        <IconX onClick={() => close(false)} className='absolute right-6 cursor-pointer hover:text-red-500 transition-colors' />
-        <h2 className="text-3xl pb-5 font-bold text-center">Welcome!<br></br> Please enter your basic info</h2>
-        <div className="flex flex-col">
-          <label className="font-bold text-xl pb-1" htmlFor="userName">Full Name</label>
-          <input
-          required 
-          className="border rounded-lg h-10 px-2" 
-          type="text"
-          value={userName}
-          onChange={(e) => setUserName(e.target.value)}
-          placeholder='Your Full Name'
-          />
+  return (
+    <Modal
+      title={isSetup ? 'Set up your business' : 'Business details'}
+      subtitle={
+        isSetup
+          ? 'Add your details once. Every invoice will use them automatically.'
+          : 'These details appear in the payment section of every invoice.'
+      }
+      onClose={close}
+      size="lg"
+    >
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Full name" htmlFor="userName">
+            <input
+              id="userName"
+              className="input"
+              type="text"
+              required
+              autoComplete="name"
+              placeholder="Jane Cooper"
+              value={form.userName}
+              onInput={update('userName')}
+            />
+          </Field>
+
+          <Field label="Company" htmlFor="companyName">
+            <input
+              id="companyName"
+              className="input"
+              type="text"
+              required
+              autoComplete="organization"
+              placeholder="Studio North"
+              value={form.companyName}
+              onInput={update('companyName')}
+            />
+          </Field>
+
+          <Field label="Work address" htmlFor="workDirection">
+            <input
+              id="workDirection"
+              className="input"
+              type="text"
+              autoComplete="street-address"
+              placeholder="123 Main Street, City"
+              value={form.workDirection}
+              onInput={update('workDirection')}
+            />
+          </Field>
+
+          <Field label="Email" htmlFor="emailAddress">
+            <input
+              id="emailAddress"
+              className="input"
+              type="email"
+              autoComplete="email"
+              placeholder="hello@studionorth.com"
+              value={form.emailAddress}
+              onInput={update('emailAddress')}
+            />
+          </Field>
+
+          <Field label="Phone" htmlFor="phoneNumber">
+            <input
+              id="phoneNumber"
+              className="input"
+              type="tel"
+              autoComplete="tel"
+              placeholder="+1 555 555 555"
+              value={form.phoneNumber}
+              onInput={update('phoneNumber')}
+            />
+          </Field>
         </div>
-        <div className="flex flex-col">
-          <label className="font-bold text-xl pb-1" htmlFor="companyName">Company Name</label>
-          <input
-          required 
-          className="border rounded-lg h-10 px-2" 
-          type="text"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-          placeholder='Your Company Name'
-          />
+
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+          <Button variant="secondary" onClick={close}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            icon={isSetup ? IconArrowRight : IconCheck}
+          >
+            {isSetup ? 'Save and continue' : 'Save changes'}
+          </Button>
         </div>
-        <div className="flex flex-col">
-          <label className="font-bold text-xl pb-1" htmlFor="workDirection">Work Address</label>
-          <input
-          required 
-          className="border rounded-lg h-10 px-2" 
-          type="text" 
-          value={workDirection}
-          onChange={(e) => setWorkDirection(e.target.value)}
-          placeholder='Your Work Address'
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="font-bold text-xl pb-1" htmlFor="emailAddress">Mail</label>
-          <input
-          required 
-          className="border rounded-lg h-10 px-2" 
-          type="email" 
-          value={emailAddress}
-          onChange={(e) => setEmailAddress(e.target.value)}
-          placeholder='abcdefghijk@gmail.com'
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="font-bold text-xl pb-1" htmlFor="phoneNumber">Phone Number</label>
-          <input
-          required 
-          className="border rounded-lg h-10 px-2" 
-          type="tel" 
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          placeholder='+ 555 555 555'
-          />
-        </div>
-        <button type='submit' className="bg-blue-500 hover:bg-blue-400 transition-colors text-2xl font-bold text-white rounded-2xl p-4 mt-2">Ready For Create A Invoice</button>
       </form>
-    </div>
+    </Modal>
   )
 }

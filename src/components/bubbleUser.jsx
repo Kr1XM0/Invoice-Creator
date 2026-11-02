@@ -1,22 +1,44 @@
-import { useState } from "preact/hooks"
-import UserChangeModal from "./UserChangeModal"
+import { useState } from 'preact/hooks'
+import InitForm from './initForm'
 
-export default function BubbleUser ({userName, oldUserData}){
-  const [openModal,setOpenModal] = useState(false)
-  
-  const handleModal = (value) => {    
-    setOpenModal(value)
-  }
+export default function BubbleUser({ userName = '', userData, onSave }) {
+  const [open, setOpen] = useState(false)
+  const initials = userName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
 
-  const fristLetters = userName.split('', 2).join('').toUpperCase()
-  return(
+  return (
     <>
-      <div className="absolute top-5 left-0" onClick={() => handleModal(true)}>
-        <h2 className="size-16 bg-blue-500 rounded-xl text-2xl font-bold flex items-center justify-center cursor-pointer">
-          {fristLetters}
-        </h2>
-      </div>
-      {!openModal ? '' : <UserChangeModal close={(x) => handleModal(x)} oldUserData={oldUserData} />}
+      <button
+        type="button"
+        className="flex cursor-pointer items-center gap-2.5 rounded-full border border-neutral-200 bg-white py-1.5 pr-4 pl-1.5 text-left transition-colors hover:border-neutral-300 hover:bg-neutral-50"
+        onClick={() => setOpen(true)}
+        aria-label="Open business details"
+      >
+        <span className="grid size-8 place-items-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
+          {initials || 'IN'}
+        </span>
+        <span className="hidden min-w-0 sm:block">
+          <span className="block max-w-32 truncate text-xs font-medium text-neutral-900">
+            {userName || 'Business details'}
+          </span>
+          <span className="block text-[11px] text-neutral-500">
+            Business details
+          </span>
+        </span>
+      </button>
+
+      {open && (
+        <InitForm
+          initialData={userData}
+          onSave={onSave}
+          close={() => setOpen(false)}
+        />
+      )}
     </>
   )
 }
